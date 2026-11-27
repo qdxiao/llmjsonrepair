@@ -4,6 +4,53 @@
 
 ---
 
+## 30-second quickstart · 30 秒上手
+
+Go library for salvaging malformed LLM JSON when retrying is not an option.
+当模型输出的 JSON 被截断、又不方便重试时，可以用这个 Go 库尝试修复。
+
+[Try it in Go Playground / 在线试用](https://go.dev/play/p/dTQxHA5zIhQ) (no installation needed).
+
+Requires Go 1.24+. In an existing Go module (run `go mod init demo` first if needed):
+
+```sh
+go get github.com/qdxiao/llmjsonrepair/pkg
+```
+
+Save as `main.go` in a demo module and run `go run .`:
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    repair "github.com/qdxiao/llmjsonrepair/pkg"
+)
+
+func main() {
+    fixed, err := repair.Repair(`{"items":["a","b"`)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(fixed)
+}
+```
+
+The output is formatted JSON equivalent to `{"items":["a","b"]}`.
+Use `Repair` for JSON text or `Loads` for parsed Go values.
+
+### What repair cannot recover · 修复的边界
+
+- A missing value is not recoverable. For example, `{"total":` repairs to `{"total":null}`.
+- Strip known framing before repair if you expect a single object. For example, `Here is the JSON: {"ok":true` repairs to `["the JSON",{"ok":true}]`, not an object.
+- Validate the expected shape, required fields, and values after repair. Retry the upstream request when required data is missing or when a guess would be unsafe.
+
+修复只能尽量补齐结构，不能恢复未生成的值。若预期单个对象，先去掉已知前缀；修复后校验根类型、必填字段和值，关键数据缺失时重试。
+
+---
+
 ## 中文
 
 专门用于修复大模型输出 JSON 格式错误的 Go 语言库
@@ -30,12 +77,12 @@
 - ✅ 混乱的引号和转义字符
 - ✅ 多 JSON 对象流被截断
 - ✅ 缺少分隔符（逗号、冒号）
-- ✅ LLM 思考过程文本残留
+- ⚠️ 包含 JSON 之外的说明文字时，结果可能不是单个对象；见上方「修复的边界」
 
 ### 安装
 
 ```bash
-go get github.com/qdxiao/llmjsonrepair
+go get github.com/qdxiao/llmjsonrepair/pkg
 ```
 
 ### 快速开始
@@ -134,12 +181,12 @@ A Go library specifically designed to repair malformed JSON output from Large La
 - ✅ Messy quotes and escape characters
 - ✅ Truncated multi-JSON object streams
 - ✅ Missing separators (commas, colons)
-- ✅ Residual LLM reasoning text
+- ⚠️ Extra prose can change the result shape; see “What repair cannot recover” above
 
 ### Installation
 
 ```bash
-go get github.com/qdxiao/llmjsonrepair
+go get github.com/qdxiao/llmjsonrepair/pkg
 ```
 
 ### Quick Start

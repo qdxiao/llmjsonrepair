@@ -1,3 +1,5 @@
+// Package pkg repairs malformed JSON, including truncated output from language models.
+// Repair is best effort; validate repaired data against the expected schema before using it.
 package pkg
 
 import (
@@ -5,7 +7,8 @@ import (
 	"fmt"
 )
 
-// Repair 尝试修复并解析JSON字符串
+// Repair returns formatted JSON, attempting to repair malformed input.
+// Repair can guess missing structure, but cannot recover values that were never present.
 func Repair(jsonStr string) (string, error) {
 	// 尝试直接解析，如果成功就直接返回
 	var out interface{}
@@ -31,7 +34,8 @@ func Repair(jsonStr string) (string, error) {
 	return string(repaired), nil
 }
 
-// Loads 修复JSON并返回一个数据结构 (map[string]interface{} 或 []interface{})
+// Loads parses valid or repairable JSON into Go values. Objects become maps and
+// arrays become slices. Input with multiple JSON values may produce a slice.
 func Loads(jsonStr string) (interface{}, error) {
 	// 尝试直接解析
 	var out interface{}
