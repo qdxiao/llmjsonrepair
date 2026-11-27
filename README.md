@@ -49,6 +49,10 @@ Use `Repair` for JSON text or `Loads` for parsed Go values.
 
 修复只能尽量补齐结构，不能恢复未生成的值。若预期单个对象，先去掉已知前缀；修复后校验根类型、必填字段和值，关键数据缺失时重试。
 
+**Required numbers:** A plain `int` in a fresh Go struct stays `0` after decoding either `null` or an absent field. For a required `total`, decode into a fresh struct with `Total *int` (tagged `json:"total"`). Check the `json.Unmarshal` error first, then reject `Total == nil`. An explicit `0` gives a non-nil pointer to zero.
+
+**必填数字：** 用 Go 的 `json.Unmarshal` 解码到新建结构体时，字段为 `null` 或不存在都会让普通 `int` 保持为 `0`。若 `total` 必填，请用 `Total *int`（标签为 `json:"total"`），先检查解码错误，再拒绝 `Total == nil`。显式传入的 `0` 会得到指向零的非空指针。
+
 ---
 
 ## 中文
