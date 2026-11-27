@@ -56,9 +56,9 @@ func main() {
 			description: "数组中包含未加引号的字符串字面量。",
 		},
 		{
-			name:        "LLM 思考过程残留",
+			name:        "JSON 前有说明文字",
 			malformed:   `Here is the JSON: {"reasoning": "The user wants a summary.", "result": {"summary": "This is a summary text...`,
-			description: "JSON 前面有非 JSON 的文本，解析器应该能跳过它并找到 JSON 的开始。",
+			description: "此输入会修复成数组，第一项是 \"the JSON\"，第二项才是对象。如果调用方只接受对象，应先去掉已知前缀并校验结果类型。",
 		},
 	}
 	for _, tc := range testCases {
