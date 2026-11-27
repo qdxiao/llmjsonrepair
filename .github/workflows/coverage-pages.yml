@@ -1,0 +1,75 @@
+name: Public Go coverage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-pages
+  cancel-in-progress: true
+
+jobs:
+  report:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version: '1.24.x'
+          cache: false
+      - name: Test and generate library report
+        shell: bash
+        run: |
+          go vet ./...
+          go test -race -coverprofile=coverage.out ./pkg
+          mkdir -p site
+          go tool cover -html=coverage.out -o site/coverage.html
+          go tool cover -func=coverage.out > site/coverage.txt
+          pct=$(awk '$1 == "total:" {print $NF}' site/coverage.txt)
+          [[ "$pct" =~ ^[0-9]+([.][0-9]+)?%$ ]]
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ && "$GITHUB_RUN_ID" =~ ^[0-9]+$ ]]
+          built=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          cat > site/index.html <<HTML
+          <!doctype html>
+          <html lang="en"><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>llmjsonrepair Go coverage</title>
+          <style>body{max-width:48rem;margin:3rem auto;padding:0 1rem;font:1rem/1.6 system-ui,sans-serif}code{overflow-wrap:anywhere}</style>
+          <main><h1>llmjsonrepair Go coverage</h1>
+          <p><strong>$pct statement coverage</strong> for the core Go library (<code>./pkg</code>), excluding the separate example program.</p>
+          <p>Generated at <time datetime="$built">$built</time> from commit <a href="https://github.com/qdxiao/llmjsonrepair/commit/$GITHUB_SHA"><code>$GITHUB_SHA</code></a>.</p>
+          <p>Updated on successful main-branch coverage runs. Failed runs leave the last successful report in place.</p>
+          <ul><li><a href="coverage.html">Source coverage</a></li><li><a href="coverage.txt">Function coverage (text)</a></li><li><a href="https://github.com/qdxiao/llmjsonrepair/actions/runs/$GITHUB_RUN_ID">Generating CI run</a></li><li><a href="https://github.com/qdxiao/llmjsonrepair/actions/workflows/coverage-pages.yml">Coverage run history</a></li></ul></main>
+          </html>
+          HTML
+          {
+            printf '## Core library statement coverage: %s\n\n' "$pct"
+            echo '```text'
+            cat site/coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
