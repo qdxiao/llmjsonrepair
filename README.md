@@ -9,6 +9,8 @@
 Go library for salvaging malformed LLM JSON when retrying is not an option.
 当模型输出的 JSON 被截断、又不方便重试时，可以用这个 Go 库尝试修复。
 
+[Try it in Go Playground / 在线试用](https://go.dev/play/p/dTQxHA5zIhQ) (no installation needed).
+
 Requires Go 1.24+. In an existing Go module (run `go mod init demo` first if needed):
 
 ```sh
