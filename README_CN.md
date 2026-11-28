@@ -26,14 +26,16 @@
 - ✅ 混乱的引号和转义字符
 - ✅ 多 JSON 对象流被截断
 - ✅ 缺少分隔符（逗号、冒号）
-- ✅ LLM 思考过程文本残留
+- ⚠️ 额外的说明文字可能改变结果结构，见[修复的边界](README.md#what-repair-cannot-recover--修复的边界)。
 - ✅ 数值格式错误
 - ✅ 布尔值和 null 值错误
 
 ## 安装
 
+需要 Go 1.24.0 或更高版本。请在 Go 模块中执行（如果还没创建模块，先运行 `go mod init demo`）：
+
 ```bash
-go get github.com/qdxiao/llmjsonrepair
+go get github.com/qdxiao/llmjsonrepair/pkg@v0.1.0
 ```
 
 ## 快速开始
@@ -159,14 +161,41 @@ fmt.Printf("%+v\n", data)
 // 输出: [map[id:1 type:start] map[id:2 type:update data:map[progress:50]]]
 ```
 
-### 5. 跳过非 JSON 文本
+### 5. 修复前移除已知前缀
+
+库可能保留部分前缀文字并返回数组。只移除应用明确预期的前缀，然后解码并校验修复结果。见[修复的边界](README.md#what-repair-cannot-recover--修复的边界)。
 
 ```go
-// JSON 前有说明文字
-malformed := `Here is the response: {"result": "success", "code": 200`
-repaired, _ := pkg.Repair(malformed)
-fmt.Println(repaired)
-// 输出: {"result": "success", "code": 200}
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "strings"
+
+    "github.com/qdxiao/llmjsonrepair/pkg"
+)
+
+func main() {
+    raw := `Here is the response: {"result": "success", "code": 200`
+    const prefix = "Here is the response: "
+    repaired, err := pkg.Repair(strings.TrimPrefix(raw, prefix))
+    if err != nil {
+        log.Fatal(err)
+    }
+    var result struct {
+        Result string `json:"result"`
+        Code *int `json:"code"`
+    }
+    if err := json.Unmarshal([]byte(repaired), &result); err != nil {
+        log.Fatal(err)
+    }
+    if result.Result != "success" || result.Code == nil || *result.Code != 200 {
+        log.Fatalf("unexpected repaired data: %s", repaired)
+    }
+    fmt.Println(repaired)
+}
 ```
 
 ## 高级用法
@@ -210,7 +239,7 @@ result, err := parser.Parse()
 6. 值是未闭合的对象
 7. 空键和缺失的值
 8. 数组中混合了未加引号的字符串和数字
-9. LLM 思考过程残留
+9. 可能改变结果结构的前缀说明文字
 
 运行测试：
 ```bash
@@ -249,12 +278,12 @@ A: 当前版本提供了通用的修复策略。如需特定的修复规则，�
 
 ### 开发环境
 
-- Go 1.18.0 或更高版本
+- Go 1.24.0 或更高版本
 - 推荐使用 Go Modules
 
 ## 更新日志
 
-### v1.0.0
+### [v0.1.0](https://github.com/qdxiao/llmjsonrepair/releases/tag/v0.1.0)
 - 初始版本发布
 - 支持基本的 JSON 修复功能
 - 提供 Repair 和 Loads 两个主要 API

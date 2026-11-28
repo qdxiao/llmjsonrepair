@@ -26,14 +26,16 @@ A Go library specifically designed to repair malformed JSON output from Large La
 - ✅ Messy quotes and escape characters
 - ✅ Truncated multi-JSON object streams
 - ✅ Missing separators (commas, colons)
-- ✅ Residual LLM reasoning text
+- ⚠️ Extra prose can change the result shape; see [validation guidance](README.md#what-repair-cannot-recover--修复的边界).
 - ✅ Number format errors
 - ✅ Boolean and null value errors
 
 ## Installation
 
+Go 1.24.0 or newer is required. Run this from a Go module (`go mod init demo` if needed):
+
 ```bash
-go get github.com/qdxiao/llmjsonrepair
+go get github.com/qdxiao/llmjsonrepair/pkg@v0.1.0
 ```
 
 ## Quick Start
@@ -159,14 +161,41 @@ fmt.Printf("%+v\n", data)
 // Output: [map[id:1 type:start] map[id:2 type:update data:map[progress:50]]]
 ```
 
-### 5. Skipping Non-JSON Text
+### 5. Remove a known prefix before repair
+
+The library may retain parts of leading prose and return an array. Strip only the exact prefix your application expects, then decode and validate the repaired object. See [validation guidance](README.md#what-repair-cannot-recover--修复的边界).
 
 ```go
-// JSON preceded by explanatory text
-malformed := `Here is the response: {"result": "success", "code": 200`
-repaired, _ := pkg.Repair(malformed)
-fmt.Println(repaired)
-// Output: {"result": "success", "code": 200}
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    "strings"
+
+    "github.com/qdxiao/llmjsonrepair/pkg"
+)
+
+func main() {
+    raw := `Here is the response: {"result": "success", "code": 200`
+    const prefix = "Here is the response: "
+    repaired, err := pkg.Repair(strings.TrimPrefix(raw, prefix))
+    if err != nil {
+        log.Fatal(err)
+    }
+    var result struct {
+        Result string `json:"result"`
+        Code *int `json:"code"`
+    }
+    if err := json.Unmarshal([]byte(repaired), &result); err != nil {
+        log.Fatal(err)
+    }
+    if result.Result != "success" || result.Code == nil || *result.Code != 200 {
+        log.Fatalf("unexpected repaired data: %s", repaired)
+    }
+    fmt.Println(repaired)
+}
 ```
 
 ## Advanced Usage
@@ -210,7 +239,7 @@ The project includes comprehensive test cases covering the following scenarios:
 6. Values as unclosed objects
 7. Empty keys and missing values
 8. Arrays with mixed unquoted strings and numbers
-9. Residual LLM reasoning text
+9. Leading prose that can change the result shape
 
 Run tests:
 ```bash
@@ -249,12 +278,12 @@ If you find bugs or have feature suggestions, please report them via GitHub Issu
 
 ### Development Environment
 
-- Go 1.18.0 or higher
+- Go 1.24.0 or higher
 - Go Modules recommended
 
 ## Changelog
 
-### v1.0.0
+### [v0.1.0](https://github.com/qdxiao/llmjsonrepair/releases/tag/v0.1.0)
 - Initial release
 - Basic JSON repair functionality
 - Repair and Loads APIs
